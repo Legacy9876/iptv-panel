@@ -1,0 +1,62 @@
+name: Deploy IPTV Panel to VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          echo "🚀 Starting deployment..."
+          
+          # Navigate to project directory
+          cd /opt/iptv-panel
+          
+          # Check if directory exists
+          if [ ! -d "/opt/iptv-panel" ]; then
+            echo "❌ Project directory not found. Please clone the repository first."
+            exit 1
+          fi
+          
+          # Backup database
+          if [ -f "database/iptv_panel.db" ]; then
+            cp database/iptv_panel.db database/iptv_panel.db.backup.$(date +%Y%m%d_%H%M%S)
+            echo "✅ Database backed up"
+          fi
+          
+          # Pull latest changes
+          git pull origin main
+          echo "✅ Git pull successful"
+          
+          # Install dependencies
+          npm install
+          echo "✅ Dependencies installed"
+          
+          # Restart application
+          if command -v pm2 &> /dev/null; then
+            pm2 restart iptv-panel || pm2 start server.js --name "iptv-panel"
+            echo "✅ Application restarted with PM2"
+          else
+            systemctl restart iptv-panel || echo "⚠️ Systemd restart failed"
+          fi
+          
+          # Wait a moment and check if app is running
+          sleep 5
+          if curl -s http://localhost:3000 > /dev/null; then
+            echo "✅ Deployment successful! Application is running."
+          else
+            echo "⚠️ Application may not be running. Please check manually."
+          fi
+          
+          echo "🌐 Access your panel at: http://${{ secrets.HOST }}:3000" 
