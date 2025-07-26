@@ -117,9 +117,48 @@ const streamRateLimit = async (req, res, next) => {
   }
 };
 
+// License validation middleware
+const licenseMiddleware = async (req, res, next) => {
+  try {
+    const licenseKey = req.headers['x-license-key'] || req.query.license || req.body.license;
+    
+    if (!licenseKey) {
+      return res.status(401).json({ error: 'License key required' });
+    }
+
+    // Check if license exists and is valid
+    const license = await db.get(
+      'SELECT * FROM licenses WHERE license_key = ? AND status = "active" AND expires_at > datetime("now")',
+      [licenseKey]
+    );
+
+    if (!license) {
+      return res.status(401).json({ error: 'Invalid or expired license key' });
+    }
+
+    // Check usage limits
+    if (license.max_connections && license.current_connections >= license.max_connections) {
+      return res.status(429).json({ error: 'License connection limit reached' });
+    }
+
+    // Update last used timestamp
+    await db.run(
+      'UPDATE licenses SET last_used = datetime("now"), current_connections = current_connections + 1 WHERE license_key = ?',
+      [licenseKey]
+    );
+
+    req.license = license;
+    next();
+  } catch (error) {
+    console.error('License middleware error:', error);
+    res.status(500).json({ error: 'License validation failed' });
+  }
+};
+
 module.exports = {
   authMiddleware,
   optionalAuth,
   streamRateLimit,
+  licenseMiddleware,
   JWT_SECRET
 }; 

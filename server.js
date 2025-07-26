@@ -14,6 +14,7 @@ const streamRoutes = require('./routes/streams');
 const channelRoutes = require('./routes/channels');
 const epgRoutes = require('./routes/epg');
 const adminRoutes = require('./routes/admin');
+const licenseRoutes = require('./routes/license');
 
 // Import database
 const db = require('./database/database');
@@ -67,6 +68,46 @@ app.use('/api/streams', authMiddleware, streamRoutes);
 app.use('/api/channels', authMiddleware, channelRoutes);
 app.use('/api/epg', authMiddleware, epgRoutes);
 app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
+app.use('/api/license', licenseRoutes);
+
+// License validation endpoint for main app
+app.post('/api/validate-license', async (req, res) => {
+  try {
+    const { license_key } = req.body;
+    
+    if (!license_key) {
+      return res.status(400).json({ error: 'License key required' });
+    }
+
+    const license = await db.get(
+      'SELECT * FROM licenses WHERE license_key = ? AND status = "active" AND expires_at > datetime("now")',
+      [license_key]
+    );
+
+    if (!license) {
+      return res.status(401).json({ error: 'Invalid or expired license key' });
+    }
+
+    if (license.max_connections && license.current_connections >= license.max_connections) {
+      return res.status(429).json({ error: 'License connection limit reached' });
+    }
+
+    res.json({
+      success: true,
+      license: {
+        customer: license.customer_name,
+        plan: license.plan_type,
+        features: license.features,
+        expires_at: license.expires_at,
+        max_connections: license.max_connections,
+        current_connections: license.current_connections
+      }
+    });
+  } catch (error) {
+    console.error('License validation error:', error);
+    res.status(500).json({ error: 'License validation failed' });
+  }
+});
 
 // Stream proxy endpoint
 app.get('/stream/:streamId', (req, res) => {

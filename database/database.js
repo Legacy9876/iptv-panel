@@ -119,6 +119,22 @@ class Database {
         setting_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
         description TEXT,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // Licenses table
+      `CREATE TABLE IF NOT EXISTS licenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        license_key TEXT UNIQUE NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_email TEXT NOT NULL,
+        plan_type TEXT NOT NULL,
+        max_connections INTEGER DEFAULT 1,
+        current_connections INTEGER DEFAULT 0,
+        features TEXT DEFAULT 'basic',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME NOT NULL,
+        last_used DATETIME,
+        status TEXT DEFAULT 'active'
       )`
     ];
 
