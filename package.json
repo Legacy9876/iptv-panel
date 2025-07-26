@@ -21,8 +21,7 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.2",
     "axios": "^1.5.0",
-    "fluent-ffmpeg": "^2.1.2",
-    "node-iptv": "^1.0.0"
+    "fluent-ffmpeg": "^2.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
